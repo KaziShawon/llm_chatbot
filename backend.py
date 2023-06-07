@@ -1,8 +1,9 @@
+import requests
 from typing import Optional
 
 from fastapi import FastAPI
 from pydantic import BaseModel, Field
-from transformers import Conversation, pipeline
+from transformers import Conversation, pipeline, AutoTokenizer, AutoModelForTokenClassification
 
 app = FastAPI()
 
@@ -10,6 +11,54 @@ app = FastAPI()
 chatbot = pipeline(
     "conversational", model="facebook/blenderbot-400M-distill", max_length=1000
 )
+
+def generate_ner(textInput):
+    '''
+    Generate NER tokens from user input
+
+    Parameters:
+    -----------
+        textInput: Text as string
+
+    Returns:
+    --------
+        ner_results: NERs detected from the model.
+    '''
+
+    tokenizer = AutoTokenizer.from_pretrained("dslim/bert-base-NER")
+    model = AutoModelForTokenClassification.from_pretrained("dslim/bert-base-NER")
+    
+    nlp = pipeline("ner", model=model, tokenizer=tokenizer)
+    ner_results = nlp(textInput)
+
+    return ner_results
+
+def get_destId(region: str):
+
+    '''
+    Get Destination Id from booking. com rapid api
+
+    Parameters:
+    -----------
+        region: Region Name in string.
+
+    Return:
+    -------
+        response: api request response
+    '''
+
+    _url = "https://booking-com.p.rapidapi.com/v1/hotels/locations"
+
+    _querystring = {"name":region, "locale":"en-gb"}
+
+    _headers = {
+        "X-RapidAPI-Key": "5ad375f6ecmsh86c69825fb07338p1a7102jsn98eecd2509d5",
+        "X-RapidAPI-Host": "booking-com.p.rapidapi.com"
+    }
+
+    response = requests.get(_url, headers=_headers, params=_querystring)
+
+    return response.json()
 
 
 class ConversationHistory(BaseModel):
@@ -37,7 +86,19 @@ async def llm_response(history: ConversationHistory) -> str:
     # Step 2: Add the latest user input
     conversation.add_user_input(history["user_input"])
 
-    # Step 3: Generate a response
+    # step 3: If NER available then find answers
+    ner_results = generate_ner(history["user_input"])
+    if len(ner_results) == 0:
+        pass
+    else:
+        for ner_dict in ner_results:
+            if ner_dict['entity'] == 'B-LOC':
+                location = ner_dict['word']
+                destIdResponse = get_destId(location)
+                
+
+
+    # Step 4: Generate a response
     _ = chatbot(conversation)
 
     # Step 4: Return the last generated result to the frontend
