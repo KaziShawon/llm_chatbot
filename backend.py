@@ -61,6 +61,19 @@ def get_destId(region: str):
     return response.json()
 
 def hotelSearch(dest_id, checkinDate, checkoutDate):
+    '''
+    Search Hotel with Booking. com with destination id, checking and checkout date
+
+    Parameters:
+    -----------
+        dest_id: Destination id generated from hotel locations api from booking.com
+        checkinDate: Checking date in "YYYY-MM-DD" format
+        checkoutDate: Checkout date in "YYYY-MM-DD" format
+
+    Returns:
+    --------
+        resoponse.json(): query response in json
+    '''
 
     _url = "https://booking-com.p.rapidapi.com/v2/hotels/search"
 
