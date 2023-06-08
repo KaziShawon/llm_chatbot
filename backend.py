@@ -92,6 +92,20 @@ def hotelSearch(dest_id, checkinDate, checkoutDate):
 
 def getPrice(hotelId, checkinDate, checkoutDate):
 
+    '''
+    Find Price of the Desired Hotel
+
+    Parameters:
+    -----------
+        hotelId: hotel id generated from hotel search api
+        checkinDate: Checking date in "YYYY-MM-DD" format
+        checkoutDate: Checkout date in "YYYY-MM-DD" format
+
+    Returns:
+    --------
+        price: All Inclusive Price in USD
+    '''
+
     _url = "https://booking-com.p.rapidapi.com/v2/hotels/details"
 
     _querystring = {"hotel_id":hotelId,"currency":"USD","locale":"en-gb","checkout_date":checkoutDate,"checkin_date":checkinDate}
@@ -143,13 +157,21 @@ async def llm_response(history: ConversationHistory) -> str:
     else:
         for ner_dict in ner_results:
             if ner_dict['entity'] == 'B-LOC':
+                # Get Locations from NER
                 location = ner_dict['word']
+                # Define Checking and Checout Date Manually
                 checkoutDate = "2023-09-29"
                 checkinDate = "2023-09-27"
+                # Find destination id from chat
                 destIdResponse = get_destId(location)
+                # Get the destination id
                 destId = destIdResponse[0]['dest_id']
+                # Query hotels with destination id
                 searchResults = hotelSearch(destId, checkinDate, checkoutDate)
+                # Find top 1 hotel and it's id
                 bestHotel = searchResults['results'][0]['name']
                 hotelId = searchResults['results'][0]['id']
+                # Find the price of the hotel
                 price = getPrice(hotelId, checkinDate, checkoutDate)
+                # Return the response to the chat
                 return f'Best hotel in {location} is {bestHotel} and Price USD:{price} - All Inclusive'
