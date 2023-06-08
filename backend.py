@@ -60,6 +60,22 @@ def get_destId(region: str):
 
     return response.json()
 
+def hotelSearch(dest_id):
+
+    _url = "https://booking-com.p.rapidapi.com/v2/hotels/search"
+
+    _querystring = {"order_by":"popularity","adults_number":"2","checkin_date":"2023-09-27","filter_by_currency":"AED","dest_id":"-1746443","locale":"en-gb",
+                "checkout_date":"2023-09-29","units":"metric","room_number":"1","dest_type":"city","include_adjacency":"true","page_number":"0",
+                "children_ages":"5,0","categories_filter_ids":"class::2,class::4,free_cancellation::1"}
+
+    _headers = {
+        "X-RapidAPI-Key": "74797e7d54msh40b29b3c55eb9a9p1392ecjsnba9a1ef4d4a9",
+        "X-RapidAPI-Host": "booking-com.p.rapidapi.com"
+    }
+
+    response = requests.get(_url, headers=_headers, params=_querystring)
+
+    return response.json()
 
 class ConversationHistory(BaseModel):
     past_user_inputs: Optional[list[str]] = []
@@ -89,17 +105,18 @@ async def llm_response(history: ConversationHistory) -> str:
     # step 3: If NER available then find answers
     ner_results = generate_ner(history["user_input"])
     if len(ner_results) == 0:
-        pass
+        # Step 5: Generate a response
+        _ = chatbot(conversation)
+
+        # Step 6: Return the last generated result to the frontend
+        return conversation.generated_responses[-1]
     else:
         for ner_dict in ner_results:
             if ner_dict['entity'] == 'B-LOC':
                 location = ner_dict['word']
                 destIdResponse = get_destId(location)
-                
-
-
-    # Step 4: Generate a response
-    _ = chatbot(conversation)
-
-    # Step 4: Return the last generated result to the frontend
-    return conversation.generated_responses[-1]
+                destId = destIdResponse[0]['dest_id']
+                searchResults = hotelSearch(destId)
+                bestHotel = searchResults['results'][0]['name']
+                hotelId = searchResults['results'][0]
+                return f'Best hotel in {location} is {bestHotel}'
