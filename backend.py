@@ -60,12 +60,12 @@ def get_destId(region: str):
 
     return response.json()
 
-def hotelSearch(dest_id):
+def hotelSearch(dest_id, checkinDate, checkoutDate):
 
     _url = "https://booking-com.p.rapidapi.com/v2/hotels/search"
 
-    _querystring = {"order_by":"popularity","adults_number":"2","checkin_date":"2023-09-27","filter_by_currency":"AED","dest_id":"-1746443","locale":"en-gb",
-                "checkout_date":"2023-09-29","units":"metric","room_number":"1","dest_type":"city","include_adjacency":"true","page_number":"0",
+    _querystring = {"order_by":"popularity","adults_number":"2","checkin_date":checkinDate,"filter_by_currency":"AED","dest_id":dest_id,"locale":"en-gb",
+                "checkout_date":checkoutDate,"units":"metric","room_number":"1","dest_type":"city","include_adjacency":"true","page_number":"0",
                 "children_ages":"5,0","categories_filter_ids":"class::2,class::4,free_cancellation::1"}
 
     _headers = {
@@ -76,6 +76,23 @@ def hotelSearch(dest_id):
     response = requests.get(_url, headers=_headers, params=_querystring)
 
     return response.json()
+
+def getPrice(hotelId, checkinDate, checkoutDate):
+
+    _url = "https://booking-com.p.rapidapi.com/v2/hotels/details"
+
+    _querystring = {"hotel_id":hotelId,"currency":"USD","locale":"en-gb","checkout_date":checkoutDate,"checkin_date":checkinDate}
+
+    _headers = {
+        "X-RapidAPI-Key": "74797e7d54msh40b29b3c55eb9a9p1392ecjsnba9a1ef4d4a9",
+        "X-RapidAPI-Host": "booking-com.p.rapidapi.com"
+    }
+
+    response = requests.get(_url, headers=_headers, params=_querystring)
+    rest = response.json()
+    price = rest['block'][0]['product_price_breakdown']['all_inclusive_amount']
+
+    return round(price['value'])
 
 class ConversationHistory(BaseModel):
     past_user_inputs: Optional[list[str]] = []
@@ -114,9 +131,12 @@ async def llm_response(history: ConversationHistory) -> str:
         for ner_dict in ner_results:
             if ner_dict['entity'] == 'B-LOC':
                 location = ner_dict['word']
+                checkoutDate = "2023-09-29"
+                checkinDate = "2023-09-27"
                 destIdResponse = get_destId(location)
                 destId = destIdResponse[0]['dest_id']
-                searchResults = hotelSearch(destId)
+                searchResults = hotelSearch(destId, checkinDate, checkoutDate)
                 bestHotel = searchResults['results'][0]['name']
-                hotelId = searchResults['results'][0]
-                return f'Best hotel in {location} is {bestHotel}'
+                hotelId = searchResults['results'][0]['id']
+                price = getPrice(hotelId, checkinDate, checkoutDate)
+                return f'Best hotel in {location} is {bestHotel} and Price USD:{price} - All Inclusive'
